@@ -34,6 +34,13 @@ st.markdown("""
         margin: 1rem 0;
         font-size: 0.9rem;
     }
+    .error-box {
+        background-color: #ffe6e6;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        border-left: 4px solid #ff4444;
+    }
     div[data-testid="stMetricValue"] {
         font-size: 2rem;
     }
@@ -68,7 +75,9 @@ with tab1:
         
         # Volumen circulante
         st.markdown("**Circulating Volume**")
-        if st.checkbox("Use simplified method", value=True):
+        use_simplified = st.checkbox("Use simplified method", value=True)
+        
+        if use_simplified:
             if gender == "Male":
                 circulating_volume = weight * 75
             else:
@@ -82,10 +91,12 @@ with tab1:
                 value=170.0,
                 step=1.0
             )
+            
+            # FÓRMULA CORREGIDA DE NADLER
             if gender == "Male":
-                circulating_volume = (0.006012 * (height ** 3)) / (14.6 * weight) + 604
+                circulating_volume = (0.006012 * (height ** 3)) + (14.6 * weight) + 604
             else:
-                circulating_volume = (0.005835 * (height ** 3)) / (15 * weight) + 183
+                circulating_volume = (0.005835 * (height ** 3)) + (15 * weight) + 183
         
         st.info(f"Circulating Volume: **{circulating_volume:.0f} ml**")
         
@@ -121,34 +132,55 @@ with tab1:
         
         # Botón de cálculo
         if st.button("CALCULATE PERMISSIBLE FAT LOSS", type="primary", use_container_width=True):
-            # Calcular pérdida permisible de sangre
-            permissible_blood_loss = (initial_hemoglobin - min_hemoglobin) * weight * circulating_volume
-            
-            # Calcular pérdida permisible de grasa con el modelo múltiple (más preciso)
-            permissible_fat_loss = 383.725 + 3.406 * permissible_blood_loss - 29.116 * age
-            
-            # Mostrar resultados
-            st.markdown("<div class='result-box'>", unsafe_allow_html=True)
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.metric(
-                    "Permissible Blood Loss",
-                    f"{permissible_blood_loss:.0f} ml",
-                    help="Maximum safe blood loss"
-                )
-            
-            with col2:
-                st.metric(
-                    "Permissible Fat Loss",
-                    f"{permissible_fat_loss:.0f} ml",
-                    help="Maximum fat that can be aspirated"
-                )
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # Advertencia si es mayor a 5000ml
-            if permissible_fat_loss > 5000:
-                st.warning("⚠️ Volume > 5000 ml. Procedure should be performed in a facility with ICU.")
+            # Validación de hemoglobina
+            if initial_hemoglobin <= min_hemoglobin:
+                st.error("⚠️ Initial hemoglobin must be greater than minimum hemoglobin")
+            else:
+                # Calcular pérdida permisible de sangre
+                permissible_blood_loss = (initial_hemoglobin - min_hemoglobin) * weight * circulating_volume
+                
+                # Calcular pérdida permisible de grasa con el modelo múltiple (más preciso)
+                permissible_fat_loss = 383.725 + 3.406 * permissible_blood_loss - 29.116 * age
+                
+                # Mostrar resultados
+                st.markdown("<div class='result-box'>", unsafe_allow_html=True)
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric(
+                        "Permissible Blood Loss",
+                        f"{permissible_blood_loss:.0f} ml",
+                        help="Maximum safe blood loss"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "Permissible Fat Loss",
+                        f"{permissible_fat_loss:.0f} ml",
+                        help="Maximum fat that can be aspirated"
+                    )
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Advertencia si es mayor a 5000ml
+                if permissible_fat_loss > 5000:
+                    st.warning("⚠️ Volume > 5000 ml. Procedure should be performed in a facility with ICU.")
+                
+                # Mostrar cálculos paso a paso
+                with st.expander("📊 Detailed Calculations"):
+                    st.write(f"**Step 1: Circulating Volume**")
+                    if use_simplified:
+                        st.write(f"Simplified method: {weight} kg × {75 if gender == 'Male' else 65} ml/kg = {circulating_volume:.0f} ml")
+                    else:
+                        if gender == "Male":
+                            st.write(f"Nadler formula (Male): 0.006012 × {height}³ + 14.6 × {weight} + 604 = {circulating_volume:.0f} ml")
+                        else:
+                            st.write(f"Nadler formula (Female): 0.005835 × {height}³ + 15 × {weight} + 183 = {circulating_volume:.0f} ml")
+                    
+                    st.write(f"**Step 2: Permissible Blood Loss**")
+                    st.write(f"({initial_hemoglobin} - {min_hemoglobin}) × {weight} × {circulating_volume:.0f} = {permissible_blood_loss:.0f} ml")
+                    
+                    st.write(f"**Step 3: Permissible Fat Loss**")
+                    st.write(f"383.725 + 3.406 × {permissible_blood_loss:.0f} - 29.116 × {age} = {permissible_fat_loss:.0f} ml")
     
     # Fórmula predictiva
     with st.expander("📐 Predictive formula"):
@@ -162,7 +194,21 @@ with tab1:
         ```
         
         Where MPSA = (Initial Hb - Minimum Hb) × Weight × Blood Volume
+        
+        **Blood Volume Calculation:**
+        - Simplified: Male (75 ml/kg), Female (65 ml/kg)
+        - Nadler Formula: 
+          - Male: 0.006012 × height³ + 14.6 × weight + 604
+          - Female: 0.005835 × height³ + 15 × weight + 183
         """)
+    
+    # Mostrar correcciones aplicadas
+    st.markdown("<div class='error-box'>", unsafe_allow_html=True)
+    st.markdown("**⚠️ CORRECCIONES APLICADAS:**")
+    st.markdown("- Fórmula de Nadler corregida (suma en lugar de división)")
+    st.markdown("- Validación de hemoglobina añadida")
+    st.markdown("- Cálculos paso a paso agregados")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # Tab 2: Rohrich Formula
 with tab2:
@@ -210,8 +256,13 @@ with tab2:
             
             # Mostrar resultado
             st.markdown("<div class='result-box'>", unsafe_allow_html=True)
-            st.metric("Fluid Ratio", f"{ratio:.2f}")
-            st.metric("Recommended Ratio", f"{recommended_ratio:.1f}")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.metric("Fluid Ratio", f"{ratio:.2f}")
+            
+            with col2:
+                st.metric("Recommended Ratio", f"{recommended_ratio:.1f}")
             
             # Evaluación
             if ratio < recommended_ratio * 0.9:
@@ -220,7 +271,22 @@ with tab2:
                 st.warning("⚠️ High fluid ratio. Risk of fluid overload.")
             else:
                 st.success("✅ Adequate fluid ratio.")
+            
             st.markdown("</div>", unsafe_allow_html=True)
+            
+            # Cálculos detallados
+            with st.expander("📊 Detailed Calculations"):
+                st.write(f"**Fluid Ratio Calculation:**")
+                st.write(f"({endovenous_liquid} + {liquid_infiltrated}) ÷ {total_aspirate} = {ratio:.2f}")
+                st.write(f"**Recommended Ratio:** {recommended_ratio:.1f} (for aspirate {'< 5000' if total_aspirate < 5000 else '≥ 5000'} ml)")
+                
+                difference = ratio - recommended_ratio
+                if difference > 0:
+                    st.write(f"**Excess:** {difference:.2f} above recommended")
+                else:
+                    st.write(f"**Deficit:** {abs(difference):.2f} below recommended")
+        else:
+            st.error("Total aspirate must be greater than 0")
     
     # Información de la fórmula
     st.markdown("<div class='formula-box'>", unsafe_allow_html=True)
@@ -244,3 +310,4 @@ with tab2:
 # Footer
 st.markdown("---")
 st.caption("Based on: Manzaneda Cipriani R. et al. Cir. plást. iberolatinoam. 2021;47(1):19-28")
+st.caption("⚠️ **VERSIÓN CORREGIDA** - Fórmula de Nadler actualizada según paper original")
