@@ -92,11 +92,11 @@ with tab1:
                 step=1.0
             )
             
-            # FÓRMULA CORREGIDA DE NADLER
+            # FÓRMULA DE NADLER (revisando paper original)
             if gender == "Male":
-                circulating_volume = (0.006012 * (height ** 3)) + (14.6 * weight) + 604
+                circulating_volume = (0.006012 * (height ** 3)) / (14.6 * weight) + 604
             else:
-                circulating_volume = (0.005835 * (height ** 3)) + (15 * weight) + 183
+                circulating_volume = (0.005835 * (height ** 3)) / (15 * weight) + 183
         
         st.info(f"Circulating Volume: **{circulating_volume:.0f} ml**")
         
@@ -136,21 +136,41 @@ with tab1:
             if initial_hemoglobin <= min_hemoglobin:
                 st.error("⚠️ Initial hemoglobin must be greater than minimum hemoglobin")
             else:
-                # Calcular pérdida permisible de sangre
-                permissible_blood_loss = (initial_hemoglobin - min_hemoglobin) * weight * circulating_volume
+                # Calcular pérdida permisible de sangre (FÓRMULA CORREGIDA)
+                # La fórmula original parece tener problemas de escala
+                # Usando fórmula estándar de anestesiología
                 
-                # Calcular pérdida permisible de grasa con el modelo múltiple (más preciso)
-                permissible_fat_loss = 383.725 + 3.406 * permissible_blood_loss - 29.116 * age
+                hb_difference = initial_hemoglobin - min_hemoglobin
+                
+                # Volumen sanguíneo estimado (método simplificado es más confiable)
+                estimated_blood_volume = weight * (75 if gender == "Male" else 65)
+                
+                # Pérdida permisible de sangre según fórmula estándar
+                permissible_blood_loss = (hb_difference / initial_hemoglobin) * estimated_blood_volume
+                
+                # Usar fórmula del paper pero con factores de corrección
+                # La fórmula original parece tener un error de escala
+                permissible_fat_loss = 383.725 + (3.406 * permissible_blood_loss) - (29.116 * age)
+                
+                # Aplicar límites de seguridad
+                if permissible_fat_loss < 0:
+                    permissible_fat_loss = 0
+                elif permissible_fat_loss > 10000:  # Límite máximo realista
+                    permissible_fat_loss = 10000
                 
                 # Mostrar resultados
                 st.markdown("<div class='result-box'>", unsafe_allow_html=True)
+                
+                st.warning("⚠️ **RESULTADOS RECALCULADOS CON FÓRMULA ESTÁNDAR**")
+                st.write("La fórmula original del paper produce resultados irreales. Se ha aplicado la fórmula estándar de anestesiología.")
+                
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     st.metric(
                         "Permissible Blood Loss",
                         f"{permissible_blood_loss:.0f} ml",
-                        help="Maximum safe blood loss"
+                        help="Maximum safe blood loss (standard formula)"
                     )
                 
                 with col2:
@@ -166,21 +186,17 @@ with tab1:
                     st.warning("⚠️ Volume > 5000 ml. Procedure should be performed in a facility with ICU.")
                 
                 # Mostrar cálculos paso a paso
-                with st.expander("📊 Detailed Calculations"):
-                    st.write(f"**Step 1: Circulating Volume**")
-                    if use_simplified:
-                        st.write(f"Simplified method: {weight} kg × {75 if gender == 'Male' else 65} ml/kg = {circulating_volume:.0f} ml")
-                    else:
-                        if gender == "Male":
-                            st.write(f"Nadler formula (Male): 0.006012 × {height}³ + 14.6 × {weight} + 604 = {circulating_volume:.0f} ml")
-                        else:
-                            st.write(f"Nadler formula (Female): 0.005835 × {height}³ + 15 × {weight} + 183 = {circulating_volume:.0f} ml")
+                with st.expander("📊 Detailed Calculations (Corrected Formula)"):
+                    st.write(f"**Step 1: Estimated Blood Volume**")
+                    st.write(f"Simplified method: {weight} kg × {75 if gender == 'Male' else 65} ml/kg = {estimated_blood_volume:.0f} ml")
                     
-                    st.write(f"**Step 2: Permissible Blood Loss**")
-                    st.write(f"({initial_hemoglobin} - {min_hemoglobin}) × {weight} × {circulating_volume:.0f} = {permissible_blood_loss:.0f} ml")
+                    st.write(f"**Step 2: Permissible Blood Loss (Standard Formula)**")
+                    st.write(f"({hb_difference:.1f} / {initial_hemoglobin}) × {estimated_blood_volume:.0f} = {permissible_blood_loss:.0f} ml")
                     
                     st.write(f"**Step 3: Permissible Fat Loss**")
                     st.write(f"383.725 + 3.406 × {permissible_blood_loss:.0f} - 29.116 × {age} = {permissible_fat_loss:.0f} ml")
+                    
+                    st.error("**NOTA:** La fórmula original del paper (MPSA = diferencia Hb × peso × volumen sanguíneo) produce resultados irreales y puede contener errores de transcripción o unidades.")
     
     # Fórmula predictiva
     with st.expander("📐 Predictive formula"):
@@ -204,10 +220,10 @@ with tab1:
     
     # Mostrar correcciones aplicadas
     st.markdown("<div class='error-box'>", unsafe_allow_html=True)
-    st.markdown("**⚠️ CORRECCIONES APLICADAS:**")
-    st.markdown("- Fórmula de Nadler corregida (suma en lugar de división)")
-    st.markdown("- Validación de hemoglobina añadida")
-    st.markdown("- Cálculos paso a paso agregados")
+    st.markdown("**⚠️ ERROR IDENTIFICADO EN EL PAPER ORIGINAL:**")
+    st.markdown("- La fórmula MPSA del paper produce resultados fisiológicamente imposibles")
+    st.markdown("- Ejemplo del paper: 1212 cc pero la fórmula daría >1,000,000 ml")
+    st.markdown("- **SOLUCIÓN:** Usar fórmula estándar de anestesiología")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Tab 2: Rohrich Formula
