@@ -492,11 +492,6 @@ with tab2:
 # Footer
 st.markdown("""
 <div class="footer">
-    <p><strong>Referencia Principal:</strong> Manzaneda Cipriani R, Ordóñez Nolasco M, García Marcelo J, Palacín Soto J, Pérez Villalba J. Pérdida permisible de grasa en liposucción: fórmula y aplicación informática para cuantificar un nuevo concepto. Cir. plást. iberolatinoam. 2021;47(1):19-28</p>
-    <p><strong>DOI:</strong> 10.4321/s0376-78922021000100004</p>
-    <p><em>Herramienta desarrollada para uso profesional en cirugía plástica</em></p>
-</div>
-""", unsafe_allow_html=True)
     <p><strong>Referencia:</strong> Manzaneda Cipriani R. et al. Pérdida permisible de grasa en liposucción: fórmula y aplicación informática para cuantificar un nuevo concepto. Cir. plást. iberolatinoam. 2021;47(1):19-28</p>
     <p><em>Herramienta desarrollada para uso profesional en cirugía plástica</em></p>
 </div>
