@@ -175,7 +175,7 @@ tab1, tab2 = st.tabs(["🧮 Pérdida Permisible de Grasa", "💧 Fórmula de Roh
 with tab1:
     st.markdown('<h2 class="tab-header">Cálculo de Pérdida Permisible de Grasa</h2>', unsafe_allow_html=True)
     
-    # Inputs organizados en columnas
+    # Inputs organizados en columnas (igual que la app original)
     col1, col2 = st.columns(2)
     
     with col1:
@@ -187,8 +187,25 @@ with tab1:
             step=0.5
         )
         
+        min_hemoglobin = st.number_input(
+            "Hemoglobina Mínima (g/dL)",
+            min_value=7.0,
+            max_value=12.0,
+            value=10.0,
+            step=0.1
+        )
+        
+        age = st.number_input(
+            "Edad (años)",
+            min_value=18,
+            max_value=70,
+            value=30,
+            step=1
+        )
+    
+    with col2:
         gender = st.selectbox(
-            "Sexo",
+            "Género",
             ["Masculino", "Femenino"]
         )
         
@@ -200,55 +217,13 @@ with tab1:
             step=0.1
         )
     
-    with col2:
-        age = st.number_input(
-            "Edad (años)",
-            min_value=18,
-            max_value=70,
-            value=30,
-            step=1
-        )
-        
-        min_hemoglobin = st.number_input(
-            "Hemoglobina Mínima (g/dL)",
-            min_value=7.0,
-            max_value=12.0,
-            value=10.0,
-            step=0.1
-        )
-    
-    # Método de cálculo de volumen sanguíneo
-    st.markdown("### Método de Cálculo del Volumen Sanguíneo")
-    
-    calc_method = st.radio(
-        "Seleccione el método:",
-        ["Método Simplificado", "Fórmula de Nadler"],
-        horizontal=True
-    )
-    
-    if calc_method == "Fórmula de Nadler":
-        height = st.number_input(
-            "Altura (cm)",
-            min_value=140.0,
-            max_value=220.0,
-            value=170.0,
-            step=1.0
-        )
-    
     # Botón de cálculo
-    if st.button("CALCULAR", use_container_width=True):
+    if st.button("CALCULAR PÉRDIDA PERMISIBLE DE GRASA", use_container_width=True):
         if initial_hemoglobin <= min_hemoglobin:
             st.markdown('<div class="error-box">⚠️ La hemoglobina inicial debe ser mayor que la mínima</div>', unsafe_allow_html=True)
         else:
-            # Calcular volumen sanguíneo
-            if calc_method == "Método Simplificado":
-                blood_volume = weight * (75 if gender == "Masculino" else 65)
-            else:
-                # Fórmula de Nadler (mantenida original)
-                if gender == "Masculino":
-                    blood_volume = (0.006012 * (height ** 3)) / (14.6 * weight) + 604
-                else:
-                    blood_volume = (0.005835 * (height ** 3)) / (15 * weight) + 183
+            # Calcular volumen sanguíneo (SOLO método simplificado como en la app)
+            blood_volume = weight * (75 if gender == "Masculino" else 65)
             
             # Calcular pérdida permisible de sangre (fórmula estándar)
             hb_difference = initial_hemoglobin - min_hemoglobin
@@ -265,31 +240,34 @@ with tab1:
             st.markdown('<div class="result-container">', unsafe_allow_html=True)
             
             # Métricas principales
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.metric(
-                    "Pérdida Permisible de Sangre",
-                    f"{permissible_blood_loss:.0f} ml",
-                    help="Máxima pérdida sanguínea segura"
+                    "Volumen Circulante",
+                    f"{blood_volume:.0f} cc",
+                    help="Volumen sanguíneo estimado"
                 )
             
             with col2:
                 st.metric(
-                    "Pérdida Permisible de Grasa",
-                    f"{permissible_fat_loss:.0f} ml",
-                    help="Máximo volumen de grasa a aspirar"
+                    "Pérdida Permisible de Sangre",
+                    f"{permissible_blood_loss:.0f} cc",
+                    help="Máxima pérdida sanguínea segura"
                 )
             
-            # Información adicional
-            st.markdown(f"**Volumen Sanguíneo Estimado:** {blood_volume:.0f} ml")
-            st.markdown(f"**Método Utilizado:** {calc_method}")
+            with col3:
+                st.metric(
+                    "Pérdida Permisible de Grasa",
+                    f"{permissible_fat_loss:.0f} cc",
+                    help="Máximo volumen de grasa a aspirar"
+                )
             
             st.markdown('</div>', unsafe_allow_html=True)
             
             # Advertencias
             if permissible_fat_loss > 5000:
-                st.markdown('<div class="warning-box">⚠️ <strong>Atención:</strong> Volumen > 5000 ml. Se recomienda realizar el procedimiento en centro con UCI.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="warning-box">⚠️ <strong>Atención:</strong> Volumen > 5000 cc. Se recomienda realizar el procedimiento en centro con UCI.</div>', unsafe_allow_html=True)
             
             if permissible_fat_loss > 3000:
                 st.markdown('<div class="warning-box">💡 <strong>Recomendación:</strong> Considerar manejo hidroelectrolítico especializado.</div>', unsafe_allow_html=True)
@@ -297,18 +275,23 @@ with tab1:
     # Información del método
     with st.expander("ℹ️ Información del Método"):
         st.markdown("""
-        **Modelo Predictivo:**
+        **Modelo Predictivo (PPG):**
         
-        La fórmula utilizada se basa en el estudio de Manzaneda Cipriani et al., que desarrolló un modelo predictivo con 102 pacientes para determinar la pérdida permisible de grasa en liposucción.
+        Esta fórmula predictiva está hecha para uso exclusivo de cirujanos plásticos. La fórmula se basa en el estudio de Manzaneda Cipriani et al., con 102 pacientes para determinar la pérdida permisible de grasa en liposucción.
         
         **Fórmula (Modelo Multivariado):**
         ```
-        Pérdida Permisible de Grasa = 383.725 + 3.406 × (MPSA) - 29.116 × (Edad)
+        PPG = 383.725 + 3.406 × (MPSA) - 29.116 × (Edad)
         ```
         
-        **Métodos de Cálculo del Volumen Sanguíneo:**
-        - **Simplificado:** Masculino (75 ml/kg), Femenino (65 ml/kg)
-        - **Nadler:** Fórmula específica basada en altura y peso
+        **Cálculo del Volumen Circulante (Método Simplificado):**
+        - **Masculino:** 75 cc/kg
+        - **Femenino:** 65 cc/kg
+        
+        **Máxima Pérdida Sanguínea Permisible (MPSA):**
+        ```
+        MPSA = [(Hb Inicial - Hb Mínima) / Hb Inicial] × Volumen Circulante
+        ```
         """)
 
 # Tab 2: Fórmula de Rohrich (CORREGIDA)
@@ -352,24 +335,14 @@ with tab2:
             total_liquids = endovenous_liquid + liquid_infiltrated
             ratio = total_liquids / total_aspirate
             
-            # Determinar líquidos recomendados según Rohrich 2006
+            # Determinar ratio recomendado según app de Manzaneda (simplificado)
             if total_aspirate < 5000:
-                # Para pequeño volumen: Ratio 1.8, sin líquido de reemplazo
-                base_ratio = 1.8
-                replacement_fluid = 0
-                recommended_total = base_ratio * total_aspirate
-                replacement_message = "No se requiere líquido de reemplazo adicional (volumen < 5000 cc)"
+                recommended_ratio = 1.8
             else:
-                # Para gran volumen: Ratio 1.2 + líquido de reemplazo
-                base_ratio = 1.2
-                # Líquido de reemplazo = 0.25 cc × (Aspirado - 5000)
-                replacement_fluid = 0.25 * (total_aspirate - 5000)
-                # Total recomendado = (1.2 × Aspirado) + Líquido de reemplazo
-                recommended_total = (base_ratio * total_aspirate) + replacement_fluid
-                replacement_message = f"Líquido de reemplazo adicional requerido: {replacement_fluid:.0f} cc IV"
+                recommended_ratio = 1.2
             
-            # Calcular ratio efectivo recomendado
-            recommended_ratio = recommended_total / total_aspirate
+            # Calcular líquidos recomendados totales
+            recommended_total = recommended_ratio * total_aspirate
             
             # Mostrar resultados
             st.markdown('<div class="result-container">', unsafe_allow_html=True)
@@ -380,20 +353,14 @@ with tab2:
                 st.metric("Ratio Calculado", f"{ratio:.2f}")
             
             with col2:
-                st.metric("Ratio Recomendado", f"{recommended_ratio:.2f}")
+                st.metric("Ratio Recomendado", f"{recommended_ratio:.1f}")
             
             with col3:
                 st.metric("Líquidos Recomendados", f"{recommended_total:.0f} cc")
             
-            # Mostrar información sobre líquido de reemplazo
-            if total_aspirate >= 5000:
-                st.markdown(f'<div class="info-box">💉 <strong>Líquido de Reemplazo IV Adicional:</strong> {replacement_fluid:.0f} cc (0.25 × [{total_aspirate} - 5000])<br>Este volumen se suma a los líquidos base (Ratio 1.2 × Aspirado)</div>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="info-box">ℹ️ {replacement_message}</div>', unsafe_allow_html=True)
-            
-            # Evaluación del ratio
+            # Evaluación
             difference = abs(ratio - recommended_ratio)
-            tolerance = recommended_ratio * 0.15  # 15% de tolerancia
+            tolerance = recommended_ratio * 0.15
             
             if difference <= tolerance:
                 st.markdown('<div class="success-box">✅ <strong>Ratio Adecuado:</strong> El balance hídrico está dentro del rango recomendado.</div>', unsafe_allow_html=True)
@@ -408,85 +375,63 @@ with tab2:
             
             # Detalles del cálculo
             with st.expander("📊 Detalles del Cálculo"):
-                details_text = f"""
+                st.markdown(f"""
                 **Cálculo del Ratio Actual:**
-                - Líquido Infiltrado: {liquid_infiltrated} cc
-                - Líquido Endovenoso: {endovenous_liquid} cc
+                - Líquido Infiltrado (LI): {liquid_infiltrated} cc
+                - Líquido Endovenoso (LE): {endovenous_liquid} cc
                 - **Líquido Total Administrado:** {liquid_infiltrated} + {endovenous_liquid} = **{total_liquids} cc**
-                - Aspirado Total: {total_aspirate} cc
+                - Aspirado Total (AT): {total_aspirate} cc
                 - **Ratio Actual:** {total_liquids} ÷ {total_aspirate} = **{ratio:.2f}**
                 
-                **Criterio Aplicado (Rohrich 2006):**
-                """
+                **Fórmula Aplicada:**
+                {"- AT < 5000 ml → AT × 1.8 = LI + LE" if total_aspirate < 5000 else "- AT ≥ 5000 ml → AT × 1.2 = LI + LE"}
                 
-                if total_aspirate < 5000:
-                    details_text += f"""
-                - Volumen < 5000 cc: Ratio base = **1.8**
-                - **Líquidos Recomendados:** 1.8 × {total_aspirate} = **{recommended_total:.0f} cc**
-                - No requiere líquido de reemplazo adicional
-                """
-                else:
-                    base_liquids = base_ratio * total_aspirate
-                    details_text += f"""
-                - Volumen ≥ 5000 cc: Ratio base = **1.2**
-                - **Líquidos base:** 1.2 × {total_aspirate} = {base_liquids:.0f} cc
-                - **Líquido de reemplazo:** 0.25 × ({total_aspirate} - 5000) = **{replacement_fluid:.0f} cc**
-                - **Total Recomendado:** {base_liquids:.0f} + {replacement_fluid:.0f} = **{recommended_total:.0f} cc**
-                - **Ratio efectivo:** {recommended_total:.0f} ÷ {total_aspirate} = **{recommended_ratio:.2f}**
-                """
-                
-                details_text += f"""
+                **Líquidos Recomendados:**
+                - {recommended_ratio} × {total_aspirate} = **{recommended_total:.0f} cc**
                 
                 **Evaluación:**
                 - Líquidos administrados: {total_liquids} cc
                 - Líquidos recomendados: {recommended_total:.0f} cc
                 - **Diferencia:** {total_liquids - recommended_total:+.0f} cc
-                """
-                
-                st.markdown(details_text)
+                """)
         else:
             st.markdown('<div class="error-box">⚠️ El aspirado total debe ser mayor que 0</div>', unsafe_allow_html=True)
     
     # Información del método
     with st.expander("ℹ️ Información del Método"):
         st.markdown("""
-        **Fórmula de Rohrich para Balance Hídrico (Versión 2006):**
+        **Fórmula de Rohrich para Balance Hídrico:**
         
         Esta fórmula evalúa el balance hídrico en pacientes sometidos a liposucción tipo súper húmeda.
         
+        **Fórmulas aplicadas:**
+        
+        **Para Aspirado Total (AT) < 5000 cc:**
+        ```
+        AT × 1.8 = LI + LE
+        ```
+        Donde:
+        - AT = Aspirado Total
+        - LI = Líquido Infiltrado
+        - LE = Líquido Endovenoso
+        
+        **Para Aspirado Total (AT) ≥ 5000 cc:**
+        ```
+        AT × 1.2 = LI + LE
+        ```
+        
         **Cálculo del Ratio:**
         ```
-        Ratio = (Líquido Endovenoso + Líquido Infiltrado) ÷ Aspirado Total
+        Ratio = (Líquido Infiltrado + Líquido Endovenoso) ÷ Aspirado Total
         ```
         
-        **Criterios según volumen aspirado:**
-        
-        **📌 Para volumen < 5000 cc:**
-        - Ratio objetivo: **1.8**
-        - Líquidos recomendados = 1.8 × Aspirado
-        - Composición: Mantenimiento + Infiltración superhúmeda (1:1)
-        - **No requiere líquido de reemplazo adicional**
-        
-        **📌 Para volumen ≥ 5000 cc:**
-        - Ratio base: **1.2**
-        - **Líquido de reemplazo adicional:** 0.25 × (Aspirado - 5000) cc IV
-        - **Líquidos recomendados totales** = (1.2 × Aspirado) + Líquido de reemplazo
-        - Composición: Mantenimiento + Infiltración + Reemplazo
-        
-        **Ejemplo para 7000 cc de aspirado:**
-        - Líquidos base: 1.2 × 7000 = 8,400 cc
-        - Líquido de reemplazo: 0.25 × (7000 - 5000) = 500 cc
-        - **Total recomendado: 8,900 cc**
-        - Ratio efectivo: 8,900 ÷ 7,000 = **1.27**
-        
-        **Cambios respecto a versión anterior (1998):**
-        - Umbral aumentado de 4000 cc a **5000 cc**
-        - Ratio pequeño volumen reducido de 2.1 a **1.8**
-        - Ratio gran volumen reducido de 1.4 a **1.2**
-        - Objetivo: Reducir sobrecarga de líquidos y gasto urinario excesivo
+        **Interpretación:**
+        - Ratio < Recomendado: Considerar aumentar líquidos
+        - Ratio ≈ Recomendado: Balance hídrico adecuado
+        - Ratio > Recomendado: Riesgo de sobrecarga hídrica
         
         **Referencia:**
-        Rohrich RJ, Leedy JE, Swamy R, Brown SA, Coleman J. Fluid resuscitation in liposuction: a retrospective review of 89 consecutive patients. Plast Reconstr Surg. 2006;117(2):431-5.
+        Rohrich RJ, Leedy JE, Swamy JR. Fluid resuscitation in liposuction: a retrospective review of 89 consecutive patients. Plast Reconstr Surg. 2006;117(2):431-5.
         """)
 
 # Footer
