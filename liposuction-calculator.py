@@ -171,7 +171,9 @@ st.markdown("""
 # Tabs
 tab1, tab2 = st.tabs(["🧮 Pérdida Permisible de Grasa", "💧 Fórmula de Rohrich"])
 
-# Tab 1: Calculadora Principal
+# ============================================================================
+# TAB 1: PÉRDIDA PERMISIBLE DE GRASA (PPG)
+# ============================================================================
 with tab1:
     st.markdown('<h2 class="tab-header">Cálculo de Pérdida Permisible de Grasa</h2>', unsafe_allow_html=True)
     
@@ -184,7 +186,8 @@ with tab1:
             min_value=40.0,
             max_value=200.0,
             value=70.0,
-            step=0.5
+            step=0.5,
+            key="weight"
         )
         
         min_hemoglobin = st.number_input(
@@ -192,7 +195,8 @@ with tab1:
             min_value=7.0,
             max_value=12.0,
             value=10.0,
-            step=0.1
+            step=0.1,
+            key="min_hb"
         )
         
         age = st.number_input(
@@ -200,13 +204,15 @@ with tab1:
             min_value=18,
             max_value=70,
             value=30,
-            step=1
+            step=1,
+            key="age"
         )
     
     with col2:
         gender = st.selectbox(
             "Género",
-            ["Masculino", "Femenino"]
+            ["Masculino", "Femenino"],
+            key="gender"
         )
         
         initial_hemoglobin = st.number_input(
@@ -214,23 +220,24 @@ with tab1:
             min_value=10.0,
             max_value=20.0,
             value=13.0,
-            step=0.1
+            step=0.1,
+            key="initial_hb"
         )
     
     # Botón de cálculo
-    if st.button("CALCULAR PÉRDIDA PERMISIBLE DE GRASA", use_container_width=True):
+    if st.button("CALCULAR PÉRDIDA PERMISIBLE DE GRASA", use_container_width=True, key="calc_ppg"):
         if initial_hemoglobin <= min_hemoglobin:
             st.markdown('<div class="error-box">⚠️ La hemoglobina inicial debe ser mayor que la mínima</div>', unsafe_allow_html=True)
         else:
-            # Calcular volumen sanguíneo (SOLO método simplificado como en la app)
+            # Calcular volumen circulante (método simplificado)
             blood_volume = weight * (75 if gender == "Masculino" else 65)
             
-            # Calcular pérdida permisible de sangre (fórmula estándar)
+            # Calcular pérdida permisible de sangre (MPSA)
             hb_difference = initial_hemoglobin - min_hemoglobin
             permissible_blood_loss = (hb_difference / initial_hemoglobin) * blood_volume
             
-            # Calcular pérdida permisible de grasa (modelo predictivo del paper)
-            # Y2 = 383.725 + 3.406(MPSA) - 29.116(Edad)
+            # Calcular pérdida permisible de grasa (PPG)
+            # Fórmula: PPG = 383.725 + 3.406(MPSA) - 29.116(Edad)
             permissible_fat_loss = 383.725 + (3.406 * permissible_blood_loss) - (29.116 * age)
             
             # Aplicar límites de seguridad
@@ -253,48 +260,64 @@ with tab1:
                 st.metric(
                     "Pérdida Permisible de Sangre",
                     f"{permissible_blood_loss:.0f} cc",
-                    help="Máxima pérdida sanguínea segura"
+                    help="Máxima pérdida sanguínea segura (MPSA)"
                 )
             
             with col3:
                 st.metric(
                     "Pérdida Permisible de Grasa",
                     f"{permissible_fat_loss:.0f} cc",
-                    help="Máximo volumen de grasa a aspirar"
+                    help="Máximo volumen de grasa a aspirar (PPG)"
                 )
             
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # Advertencias
+            # Advertencias según volumen
             if permissible_fat_loss > 5000:
                 st.markdown('<div class="warning-box">⚠️ <strong>Atención:</strong> Volumen > 5000 cc. Se recomienda realizar el procedimiento en centro con UCI.</div>', unsafe_allow_html=True)
             
             if permissible_fat_loss > 3000:
                 st.markdown('<div class="warning-box">💡 <strong>Recomendación:</strong> Considerar manejo hidroelectrolítico especializado.</div>', unsafe_allow_html=True)
+            
+            if permissible_fat_loss < 1000:
+                st.markdown('<div class="info-box">ℹ️ <strong>Nota:</strong> Volumen bajo. Verificar parámetros del paciente.</div>', unsafe_allow_html=True)
     
     # Información del método
     with st.expander("ℹ️ Información del Método"):
         st.markdown("""
-        **Modelo Predictivo (PPG):**
+        **Modelo Predictivo de Pérdida Permisible de Grasa (PPG):**
         
-        Esta fórmula predictiva está hecha para uso exclusivo de cirujanos plásticos. La fórmula se basa en el estudio de Manzaneda Cipriani et al., con 102 pacientes para determinar la pérdida permisible de grasa en liposucción.
+        Esta fórmula predictiva está hecha para uso exclusivo de cirujanos plásticos. El cirujano plástico puede tener con esta aplicación una aproximación de cuánta grasa se puede retirar sin incrementar el riesgo de complicaciones o necesidad de transfusiones sanguíneas.
         
         **Fórmula (Modelo Multivariado):**
         ```
         PPG = 383.725 + 3.406 × (MPSA) - 29.116 × (Edad)
         ```
         
-        **Cálculo del Volumen Circulante (Método Simplificado):**
-        - **Masculino:** 75 cc/kg
-        - **Femenino:** 65 cc/kg
+        **Cálculo del Volumen Circulante:**
+        - **Hombres:** Peso (kg) × 75 cc/kg
+        - **Mujeres:** Peso (kg) × 65 cc/kg
         
         **Máxima Pérdida Sanguínea Permisible (MPSA):**
         ```
         MPSA = [(Hb Inicial - Hb Mínima) / Hb Inicial] × Volumen Circulante
         ```
+        
+        **Fundamento científico:**
+        - Estudio con 102 pacientes
+        - R² = 49% (modelo multivariado)
+        - Nivel de confianza: 95%
+        - Variables predictoras: MPSA y Edad
+        
+        **Limitaciones:**
+        - Aplicable a liposucción con técnica superhúmeda
+        - Hemoglobina mínima recomendada: 10 g/dL
+        - Requiere supervisión anestésica adecuada
         """)
 
-# Tab 2: Fórmula de Rohrich (CORREGIDA)
+# ============================================================================
+# TAB 2: FÓRMULA DE ROHRICH
+# ============================================================================
 with tab2:
     st.markdown('<h2 class="tab-header">Fórmula de Rohrich</h2>', unsafe_allow_html=True)
     st.markdown('<p style="text-align: center; color: #6c757d; margin-bottom: 2rem;">Evaluación del balance hídrico en liposucción tipo súper húmeda</p>', unsafe_allow_html=True)
@@ -304,42 +327,50 @@ with tab2:
     
     with col1:
         total_aspirate = st.number_input(
-            "Aspirado Total (cc)",
+            "Aspirado Total (AT)",
             min_value=0,
             max_value=10000,
             value=3000,
-            step=100
+            step=100,
+            help="Volumen total de grasa aspirada en cc",
+            key="aspirate"
         )
         
         liquid_infiltrated = st.number_input(
-            "Líquido Infiltrado (cc)",
+            "Líquido Infiltrado (LI)",
             min_value=0,
             max_value=20000,
             value=3000,
-            step=100
+            step=100,
+            help="Volumen infiltrado por el cirujano en cc",
+            key="infiltrated"
         )
     
     with col2:
         endovenous_liquid = st.number_input(
-            "Líquido Endovenoso (cc)",
+            "Líquido Endovenoso (LE)",
             min_value=0,
             max_value=10000,
             value=1500,
-            step=100
+            step=100,
+            help="Volumen administrado por vía IV en cc",
+            key="endovenous"
         )
     
     # Botón de cálculo
-    if st.button("CALCULAR RATIO", use_container_width=True):
+    if st.button("CALCULAR RATIO", use_container_width=True, key="calc_rohrich"):
         if total_aspirate > 0:
             # Calcular líquidos administrados totales
             total_liquids = endovenous_liquid + liquid_infiltrated
             ratio = total_liquids / total_aspirate
             
-            # Determinar ratio recomendado según app de Manzaneda (simplificado)
+            # Determinar ratio recomendado (versión simplificada de la app Manzaneda)
             if total_aspirate < 5000:
                 recommended_ratio = 1.8
+                formula_text = "AT × 1.8 = LI + LE"
             else:
                 recommended_ratio = 1.2
+                formula_text = "AT × 1.2 = LI + LE"
             
             # Calcular líquidos recomendados totales
             recommended_total = recommended_ratio * total_aspirate
@@ -358,9 +389,12 @@ with tab2:
             with col3:
                 st.metric("Líquidos Recomendados", f"{recommended_total:.0f} cc")
             
-            # Evaluación
+            # Mostrar fórmula aplicada
+            st.markdown(f'<div class="info-box">📐 <strong>Fórmula aplicada:</strong> {formula_text}</div>', unsafe_allow_html=True)
+            
+            # Evaluación del balance hídrico
             difference = abs(ratio - recommended_ratio)
-            tolerance = recommended_ratio * 0.15
+            tolerance = recommended_ratio * 0.15  # 15% de tolerancia
             
             if difference <= tolerance:
                 st.markdown('<div class="success-box">✅ <strong>Ratio Adecuado:</strong> El balance hídrico está dentro del rango recomendado.</div>', unsafe_allow_html=True)
@@ -377,22 +411,23 @@ with tab2:
             with st.expander("📊 Detalles del Cálculo"):
                 st.markdown(f"""
                 **Cálculo del Ratio Actual:**
-                - Líquido Infiltrado (LI): {liquid_infiltrated} cc
-                - Líquido Endovenoso (LE): {endovenous_liquid} cc
-                - **Líquido Total Administrado:** {liquid_infiltrated} + {endovenous_liquid} = **{total_liquids} cc**
-                - Aspirado Total (AT): {total_aspirate} cc
-                - **Ratio Actual:** {total_liquids} ÷ {total_aspirate} = **{ratio:.2f}**
+                - Líquido Infiltrado (LI): {liquid_infiltrated:,} cc
+                - Líquido Endovenoso (LE): {endovenous_liquid:,} cc
+                - **Líquido Total Administrado:** {liquid_infiltrated:,} + {endovenous_liquid:,} = **{total_liquids:,} cc**
+                - Aspirado Total (AT): {total_aspirate:,} cc
+                - **Ratio Actual:** {total_liquids:,} ÷ {total_aspirate:,} = **{ratio:.2f}**
                 
                 **Fórmula Aplicada:**
-                {"- AT < 5000 ml → AT × 1.8 = LI + LE" if total_aspirate < 5000 else "- AT ≥ 5000 ml → AT × 1.2 = LI + LE"}
+                {formula_text}
                 
                 **Líquidos Recomendados:**
-                - {recommended_ratio} × {total_aspirate} = **{recommended_total:.0f} cc**
+                - {recommended_ratio} × {total_aspirate:,} = **{recommended_total:,.0f} cc**
                 
                 **Evaluación:**
-                - Líquidos administrados: {total_liquids} cc
-                - Líquidos recomendados: {recommended_total:.0f} cc
-                - **Diferencia:** {total_liquids - recommended_total:+.0f} cc
+                - Líquidos administrados: {total_liquids:,} cc
+                - Líquidos recomendados: {recommended_total:,.0f} cc
+                - **Diferencia:** {total_liquids - recommended_total:+,.0f} cc
+                - **Porcentaje de desviación:** {((ratio - recommended_ratio) / recommended_ratio * 100):+.1f}%
                 """)
         else:
             st.markdown('<div class="error-box">⚠️ El aspirado total debe ser mayor que 0</div>', unsafe_allow_html=True)
@@ -402,36 +437,43 @@ with tab2:
         st.markdown("""
         **Fórmula de Rohrich para Balance Hídrico:**
         
-        Esta fórmula evalúa el balance hídrico en pacientes sometidos a liposucción tipo súper húmeda.
+        Esta fórmula sirve para evaluar el balance hídrico de los pacientes que se realizan liposucción tipo súper húmeda.
         
-        **Fórmulas aplicadas:**
+        **Fórmulas aplicadas según volumen aspirado:**
         
         **Para Aspirado Total (AT) < 5000 cc:**
         ```
         AT × 1.8 = LI + LE
         ```
-        Donde:
-        - AT = Aspirado Total
-        - LI = Líquido Infiltrado
-        - LE = Líquido Endovenoso
         
         **Para Aspirado Total (AT) ≥ 5000 cc:**
         ```
         AT × 1.2 = LI + LE
         ```
         
+        **Donde:**
+        - **AT** = Aspirado Total (cc)
+        - **LI** = Líquido Infiltrado por el cirujano (cc)
+        - **LE** = Líquido Endovenoso administrado (cc)
+        
         **Cálculo del Ratio:**
         ```
         Ratio = (Líquido Infiltrado + Líquido Endovenoso) ÷ Aspirado Total
         ```
         
-        **Interpretación:**
-        - Ratio < Recomendado: Considerar aumentar líquidos
-        - Ratio ≈ Recomendado: Balance hídrico adecuado
-        - Ratio > Recomendado: Riesgo de sobrecarga hídrica
+        **Interpretación del Ratio:**
+        - **Ratio < Recomendado:** Considerar aumentar líquidos (riesgo de hipovolemia)
+        - **Ratio ≈ Recomendado:** Balance hídrico adecuado
+        - **Ratio > Recomendado:** Riesgo de sobrecarga hídrica (edema pulmonar)
+        
+        **Consideraciones importantes:**
+        - La técnica superhúmeda utiliza ratio de infiltración 1:1
+        - Del líquido infiltrado, 22-29% se recupera en el aspirado
+        - El resto pasa a la circulación general
+        - Monitorizar diuresis: objetivo 1-1.2 ml/kg/hora
         
         **Referencia:**
-        Rohrich RJ, Leedy JE, Swamy JR. Fluid resuscitation in liposuction: a retrospective review of 89 consecutive patients. Plast Reconstr Surg. 2006;117(2):431-5.
+        Rohrich RJ, Leedy JE, Swamy JR. Fluid resuscitation in liposuction: a retrospective review of 89 consecutive patients. Plast Reconstr Surg. 2006;117(2):431-436.
         """)
 
 # Footer
@@ -439,5 +481,6 @@ st.markdown("""
 <div class="footer">
     <p><strong>Referencia:</strong> Manzaneda Cipriani R. et al. Pérdida permisible de grasa en liposucción: fórmula y aplicación informática para cuantificar un nuevo concepto. Cir. plást. iberolatinoam. 2021;47(1):19-28</p>
     <p><em>Herramienta desarrollada para uso profesional en cirugía plástica</em></p>
+    <p style="margin-top: 1rem; font-size: 0.75rem; opacity: 0.8;">Basada en la app móvil "Seguridad en Liposucción" por Dr. Raúl Manzaneda Cipriani</p>
 </div>
 """, unsafe_allow_html=True)
