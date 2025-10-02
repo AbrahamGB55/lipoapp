@@ -244,6 +244,7 @@ with tab1:
             if calc_method == "Método Simplificado":
                 blood_volume = weight * (75 if gender == "Masculino" else 65)
             else:
+                # Fórmula de Nadler (mantenida original)
                 if gender == "Masculino":
                     blood_volume = (0.006012 * (height ** 3)) / (14.6 * weight) + 604
                 else:
@@ -254,6 +255,7 @@ with tab1:
             permissible_blood_loss = (hb_difference / initial_hemoglobin) * blood_volume
             
             # Calcular pérdida permisible de grasa (modelo predictivo del paper)
+            # Y2 = 383.725 + 3.406(MPSA) - 29.116(Edad)
             permissible_fat_loss = 383.725 + (3.406 * permissible_blood_loss) - (29.116 * age)
             
             # Aplicar límites de seguridad
@@ -299,9 +301,9 @@ with tab1:
         
         La fórmula utilizada se basa en el estudio de Manzaneda Cipriani et al., que desarrolló un modelo predictivo con 102 pacientes para determinar la pérdida permisible de grasa en liposucción.
         
-        **Fórmula:**
+        **Fórmula (Modelo Multivariado):**
         ```
-        Pérdida Permisible de Grasa = 383.725 + 3.406 × (Pérdida Permisible de Sangre) - 29.116 × (Edad)
+        Pérdida Permisible de Grasa = 383.725 + 3.406 × (MPSA) - 29.116 × (Edad)
         ```
         
         **Métodos de Cálculo del Volumen Sanguíneo:**
@@ -309,7 +311,7 @@ with tab1:
         - **Nadler:** Fórmula específica basada en altura y peso
         """)
 
-# Tab 2: Fórmula de Rohrich
+# Tab 2: Fórmula de Rohrich (CORREGIDA)
 with tab2:
     st.markdown('<h2 class="tab-header">Fórmula de Rohrich</h2>', unsafe_allow_html=True)
     st.markdown('<p style="text-align: center; color: #6c757d; margin-bottom: 2rem;">Evaluación del balance hídrico en liposucción tipo súper húmeda</p>', unsafe_allow_html=True)
@@ -319,7 +321,7 @@ with tab2:
     
     with col1:
         total_aspirate = st.number_input(
-            "Aspirado Total (ml)",
+            "Aspirado Total (cc)",
             min_value=0,
             max_value=10000,
             value=3000,
@@ -327,7 +329,7 @@ with tab2:
         )
         
         liquid_infiltrated = st.number_input(
-            "Líquido Infiltrado (ml)",
+            "Líquido Infiltrado (cc)",
             min_value=0,
             max_value=20000,
             value=3000,
@@ -336,7 +338,7 @@ with tab2:
     
     with col2:
         endovenous_liquid = st.number_input(
-            "Líquido Endovenoso (ml)",
+            "Líquido Endovenoso (cc)",
             min_value=0,
             max_value=10000,
             value=1500,
@@ -346,74 +348,155 @@ with tab2:
     # Botón de cálculo
     if st.button("CALCULAR RATIO", use_container_width=True):
         if total_aspirate > 0:
-            # Calcular ratio
-            ratio = (endovenous_liquid + liquid_infiltrated) / total_aspirate
+            # Calcular líquidos administrados totales
+            total_liquids = endovenous_liquid + liquid_infiltrated
+            ratio = total_liquids / total_aspirate
             
-            # Determinar ratio recomendado
-            recommended_ratio = 1.8 if total_aspirate < 5000 else 1.2
+            # Determinar líquidos recomendados según Rohrich 2006
+            if total_aspirate < 5000:
+                # Para pequeño volumen: Ratio 1.8, sin líquido de reemplazo
+                base_ratio = 1.8
+                replacement_fluid = 0
+                recommended_total = base_ratio * total_aspirate
+                replacement_message = "No se requiere líquido de reemplazo adicional (volumen < 5000 cc)"
+            else:
+                # Para gran volumen: Ratio 1.2 + líquido de reemplazo
+                base_ratio = 1.2
+                # Líquido de reemplazo = 0.25 cc × (Aspirado - 5000)
+                replacement_fluid = 0.25 * (total_aspirate - 5000)
+                # Total recomendado = (1.2 × Aspirado) + Líquido de reemplazo
+                recommended_total = (base_ratio * total_aspirate) + replacement_fluid
+                replacement_message = f"Líquido de reemplazo adicional requerido: {replacement_fluid:.0f} cc IV"
+            
+            # Calcular ratio efectivo recomendado
+            recommended_ratio = recommended_total / total_aspirate
             
             # Mostrar resultados
             st.markdown('<div class="result-container">', unsafe_allow_html=True)
             
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.metric("Ratio Calculado", f"{ratio:.2f}")
             
             with col2:
-                st.metric("Ratio Recomendado", f"{recommended_ratio:.1f}")
+                st.metric("Ratio Recomendado", f"{recommended_ratio:.2f}")
             
-            # Evaluación
+            with col3:
+                st.metric("Líquidos Recomendados", f"{recommended_total:.0f} cc")
+            
+            # Mostrar información sobre líquido de reemplazo
+            if total_aspirate >= 5000:
+                st.markdown(f'<div class="info-box">💉 <strong>Líquido de Reemplazo IV Adicional:</strong> {replacement_fluid:.0f} cc (0.25 × [{total_aspirate} - 5000])<br>Este volumen se suma a los líquidos base (Ratio 1.2 × Aspirado)</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="info-box">ℹ️ {replacement_message}</div>', unsafe_allow_html=True)
+            
+            # Evaluación del ratio
             difference = abs(ratio - recommended_ratio)
-            tolerance = recommended_ratio * 0.1
+            tolerance = recommended_ratio * 0.15  # 15% de tolerancia
             
             if difference <= tolerance:
                 st.markdown('<div class="success-box">✅ <strong>Ratio Adecuado:</strong> El balance hídrico está dentro del rango recomendado.</div>', unsafe_allow_html=True)
             elif ratio < recommended_ratio:
-                st.markdown('<div class="warning-box">⚠️ <strong>Ratio Bajo:</strong> Considere aumentar la reposición de líquidos.</div>', unsafe_allow_html=True)
+                deficit = recommended_total - total_liquids
+                st.markdown(f'<div class="warning-box">⚠️ <strong>Ratio Bajo:</strong> Considere aumentar la reposición de líquidos. Déficit aproximado: {deficit:.0f} cc</div>', unsafe_allow_html=True)
             else:
-                st.markdown('<div class="error-box">⚠️ <strong>Ratio Alto:</strong> Riesgo de sobrecarga hídrica. Considere reducir la reposición.</div>', unsafe_allow_html=True)
+                excess = total_liquids - recommended_total
+                st.markdown(f'<div class="error-box">⚠️ <strong>Ratio Alto:</strong> Riesgo de sobrecarga hídrica. Exceso aproximado: {excess:.0f} cc. Considere reducir la reposición.</div>', unsafe_allow_html=True)
             
             st.markdown('</div>', unsafe_allow_html=True)
             
             # Detalles del cálculo
             with st.expander("📊 Detalles del Cálculo"):
-                st.markdown(f"""
-                **Cálculo del Ratio:**
-                - Líquido Total: {endovenous_liquid} + {liquid_infiltrated} = {endovenous_liquid + liquid_infiltrated} ml
-                - Aspirado Total: {total_aspirate} ml
-                - Ratio: {endovenous_liquid + liquid_infiltrated} ÷ {total_aspirate} = {ratio:.2f}
+                details_text = f"""
+                **Cálculo del Ratio Actual:**
+                - Líquido Infiltrado: {liquid_infiltrated} cc
+                - Líquido Endovenoso: {endovenous_liquid} cc
+                - **Líquido Total Administrado:** {liquid_infiltrated} + {endovenous_liquid} = **{total_liquids} cc**
+                - Aspirado Total: {total_aspirate} cc
+                - **Ratio Actual:** {total_liquids} ÷ {total_aspirate} = **{ratio:.2f}**
                 
-                **Criterio Aplicado:**
-                - Aspirado < 5000 ml: Ratio recomendado = 1.8
-                - Aspirado ≥ 5000 ml: Ratio recomendado = 1.2
-                """)
+                **Criterio Aplicado (Rohrich 2006):**
+                """
+                
+                if total_aspirate < 5000:
+                    details_text += f"""
+                - Volumen < 5000 cc: Ratio base = **1.8**
+                - **Líquidos Recomendados:** 1.8 × {total_aspirate} = **{recommended_total:.0f} cc**
+                - No requiere líquido de reemplazo adicional
+                """
+                else:
+                    base_liquids = base_ratio * total_aspirate
+                    details_text += f"""
+                - Volumen ≥ 5000 cc: Ratio base = **1.2**
+                - **Líquidos base:** 1.2 × {total_aspirate} = {base_liquids:.0f} cc
+                - **Líquido de reemplazo:** 0.25 × ({total_aspirate} - 5000) = **{replacement_fluid:.0f} cc**
+                - **Total Recomendado:** {base_liquids:.0f} + {replacement_fluid:.0f} = **{recommended_total:.0f} cc**
+                - **Ratio efectivo:** {recommended_total:.0f} ÷ {total_aspirate} = **{recommended_ratio:.2f}**
+                """
+                
+                details_text += f"""
+                
+                **Evaluación:**
+                - Líquidos administrados: {total_liquids} cc
+                - Líquidos recomendados: {recommended_total:.0f} cc
+                - **Diferencia:** {total_liquids - recommended_total:+.0f} cc
+                """
+                
+                st.markdown(details_text)
         else:
             st.markdown('<div class="error-box">⚠️ El aspirado total debe ser mayor que 0</div>', unsafe_allow_html=True)
     
     # Información del método
     with st.expander("ℹ️ Información del Método"):
         st.markdown("""
-        **Fórmula de Rohrich para Balance Hídrico:**
+        **Fórmula de Rohrich para Balance Hídrico (Versión 2006):**
         
         Esta fórmula evalúa el balance hídrico en pacientes sometidos a liposucción tipo súper húmeda.
         
-        **Criterios:**
-        - **Aspirado < 5000 ml:** Ratio = 1.8
-        - **Aspirado ≥ 5000 ml:** Ratio = 1.2
-        
-        **Fórmula:**
+        **Cálculo del Ratio:**
         ```
         Ratio = (Líquido Endovenoso + Líquido Infiltrado) ÷ Aspirado Total
         ```
         
+        **Criterios según volumen aspirado:**
+        
+        **📌 Para volumen < 5000 cc:**
+        - Ratio objetivo: **1.8**
+        - Líquidos recomendados = 1.8 × Aspirado
+        - Composición: Mantenimiento + Infiltración superhúmeda (1:1)
+        - **No requiere líquido de reemplazo adicional**
+        
+        **📌 Para volumen ≥ 5000 cc:**
+        - Ratio base: **1.2**
+        - **Líquido de reemplazo adicional:** 0.25 × (Aspirado - 5000) cc IV
+        - **Líquidos recomendados totales** = (1.2 × Aspirado) + Líquido de reemplazo
+        - Composición: Mantenimiento + Infiltración + Reemplazo
+        
+        **Ejemplo para 7000 cc de aspirado:**
+        - Líquidos base: 1.2 × 7000 = 8,400 cc
+        - Líquido de reemplazo: 0.25 × (7000 - 5000) = 500 cc
+        - **Total recomendado: 8,900 cc**
+        - Ratio efectivo: 8,900 ÷ 7,000 = **1.27**
+        
+        **Cambios respecto a versión anterior (1998):**
+        - Umbral aumentado de 4000 cc a **5000 cc**
+        - Ratio pequeño volumen reducido de 2.1 a **1.8**
+        - Ratio gran volumen reducido de 1.4 a **1.2**
+        - Objetivo: Reducir sobrecarga de líquidos y gasto urinario excesivo
+        
         **Referencia:**
-        Rohrich RJ, Leedy JE, Swamy JR. Fluid resuscitation in liposuction: a retrospective review of 89 consecutive patients. Plast Reconstr Surg. 2006;117:431-436.
+        Rohrich RJ, Leedy JE, Swamy R, Brown SA, Coleman J. Fluid resuscitation in liposuction: a retrospective review of 89 consecutive patients. Plast Reconstr Surg. 2006;117(2):431-5.
         """)
 
 # Footer
 st.markdown("""
 <div class="footer">
+    <p><strong>Referencia Principal:</strong> Manzaneda Cipriani R, Ordóñez Nolasco M, García Marcelo J, Palacín Soto J, Pérez Villalba J. Pérdida permisible de grasa en liposucción: fórmula y aplicación informática para cuantificar un nuevo concepto. Cir. plást. iberolatinoam. 2021;47(1):19-28</p>
+    <p><strong>DOI:</strong> 10.4321/s0376-78922021000100004</p>
+    <p><em>Herramienta desarrollada para uso profesional en cirugía plástica</em></p>
+</div>
+""", unsafe_allow_html=True)
     <p><strong>Referencia:</strong> Manzaneda Cipriani R. et al. Pérdida permisible de grasa en liposucción: fórmula y aplicación informática para cuantificar un nuevo concepto. Cir. plást. iberolatinoam. 2021;47(1):19-28</p>
     <p><em>Herramienta desarrollada para uso profesional en cirugía plástica</em></p>
 </div>
